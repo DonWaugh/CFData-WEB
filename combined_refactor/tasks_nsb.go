@@ -664,9 +664,10 @@ func runNSBTask(ctx context.Context, session *appSession, fileName, fileContent,
 			}
 			continue
 		}
-		isDomain := strings.ContainsFunc(host, func(r rune) bool {
-			return (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z')
-		}) || (len(resolvedIPs) == 1 && resolvedIPs[0] != host)
+		isDomain := false
+		if _, err := netip.ParseAddr(host); err != nil {
+			isDomain = true
+		}
 		for _, ip := range resolvedIPs {
 			originalInput := ""
 			if isDomain {
