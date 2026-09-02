@@ -135,6 +135,7 @@ var cliResultFields = []cliResultField{
 	{Key: "speed", Label: "下载速度"},
 	{Key: "outboundIP", Label: "出站IP"},
 	{Key: "ipType", Label: "IP类型"},
+	{Key: "originalInput", Label: "原始输入"},
 	{Key: "dc", Label: "数据中心"},
 	{Key: "dcCountry", Label: "落地区域"},
 	{Key: "loc", Label: "源IP位置"},
@@ -1708,7 +1709,7 @@ func resolveCLIFields(spec, format string, rows []cliResultRow, customFields []c
 			}
 			return appendCustomFields([]string{"ip", "port", "latency", "dc", "region", "city"})
 		}
-		return appendCustomFields([]string{"ip", "port", "tls", "latency", "speed", "outboundIP", "ipType", "dc", "loc", "region", "city", "asnNumber", "asnOrg"})
+		return appendCustomFields([]string{"ip", "port", "tls", "latency", "speed", "outboundIP", "ipType", "originalInput", "dc", "loc", "region", "city", "asnNumber", "asnOrg"})
 	}
 	if spec == "ipport" {
 		return appendCustomFields([]string{"ipport"})
