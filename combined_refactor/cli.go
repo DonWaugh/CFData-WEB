@@ -50,19 +50,21 @@ type cliConfig struct {
 }
 
 type cliExportConfig struct {
-	ConfigFile  string `json:"-"`
-	Format      string `json:"format"`
-	Fields      string `json:"fields"`
-	Custom      string `json:"custom"`
-	GitHub      bool   `json:"github"`
-	GitHubSet   bool   `json:"-"`
-	GHRepo      string `json:"ghrepo"`
-	GHBranch    string `json:"ghbranch"`
-	GHPath      string `json:"ghpath"`
-	GHMessage   string `json:"ghmessage"`
-	GHToken     string `json:"ghtoken"`
-	GHTokenFile string `json:"ghtokenfile"`
-	GHUpload    string `json:"ghupload"`
+	ConfigFile   string `json:"-"`
+	Format       string `json:"format"`
+	Fields       string `json:"fields"`
+	Custom       string `json:"custom"`
+	V6Bracket    bool   `json:"v6bracket"`
+	V6BracketSet bool   `json:"-"`
+	GitHub       bool   `json:"github"`
+	GitHubSet    bool   `json:"-"`
+	GHRepo       string `json:"ghrepo"`
+	GHBranch     string `json:"ghbranch"`
+	GHPath       string `json:"ghpath"`
+	GHMessage    string `json:"ghmessage"`
+	GHToken      string `json:"ghtoken"`
+	GHTokenFile  string `json:"ghtokenfile"`
+	GHUpload     string `json:"ghupload"`
 }
 
 type cliFileConfig struct {
@@ -98,6 +100,7 @@ type cliFileConfig struct {
 	Format          string  `json:"format"`
 	Fields          string  `json:"fields"`
 	Custom          string  `json:"custom"`
+	V6Bracket       bool    `json:"v6bracket"`
 	GitHub          bool    `json:"github"`
 	GHRepo          string  `json:"ghrepo"`
 	GHBranch        string  `json:"ghbranch"`
@@ -257,6 +260,7 @@ func registerCLIFlags() *cliConfig {
 	flag.StringVar(&cfg.export.Format, "format", "", "CLI 导出格式：csv 或 txt")
 	flag.StringVar(&cfg.export.Fields, "fields", "", "CLI 导出字段：compact、all、ipport 或逗号分隔字段 key")
 	flag.StringVar(&cfg.export.Custom, "custom", "", "CLI 自定义导出字段，格式 标题:内容，多项用逗号分隔")
+	flag.BoolVar(&cfg.export.V6Bracket, "v6bracket", true, "TXT 导出时对 IPv6 地址加方括号（[IPv6]:端口）")
 	flag.BoolVar(&cfg.export.GitHub, "github", false, "CLI 导出后上传到 GitHub")
 	flag.StringVar(&cfg.export.GHRepo, "ghrepo", "", "GitHub 仓库 owner/repo")
 	flag.StringVar(&cfg.export.GHBranch, "ghbranch", "", "GitHub 分支")
@@ -392,6 +396,10 @@ func resolveCLIExportConfig(cfg *cliConfig) error {
 		envCfg.GitHub = parseBoolEnv(value)
 		envCfg.GitHubSet = true
 	}
+	if value := strings.TrimSpace(os.Getenv("CFDATA_V6BRACKET")); value != "" {
+		envCfg.V6Bracket = parseBoolEnv(value)
+		envCfg.V6BracketSet = true
+	}
 	applyCLIEnvConfig(cfg, provided)
 	merged := defaultCLIExportConfig()
 	mergeCLIExportConfig(&merged, envCfg, false)
@@ -500,15 +508,15 @@ func applyCLIEnvConfig(cfg *cliConfig, provided map[string]bool) {
 }
 
 func defaultCLIExportConfig() cliExportConfig {
-	return cliExportConfig{Format: "txt", Fields: "compact", Custom: "", GitHub: false, GHBranch: "main", GHPath: "", GHMessage: "update cfdata results"}
+	return cliExportConfig{Format: "txt", Fields: "compact", Custom: "", V6Bracket: true, GitHub: false, GHBranch: "main", GHPath: "", GHMessage: "update cfdata results"}
 }
 
 func defaultCLIFileConfig() cliFileConfig {
-	return cliFileConfig{CLI: true, Mode: "official", ScanMode: "tcping", IPType: 4, Threads: 100, Out: "ip.csv", SpeedTest: 0, Progress: true, NoColor: false, URL: autoSpeedURLValue, DNS: defaultDNSServers, Debug: false, CompactIPv4: false, TestPort: 443, Delay: 500, DC: "", SpeedLimit: 5, SpeedMin: 0.1, File: "", SourceURL: "", NSBFallbackPort: 0, NSBIPType: "all", NSBQualified: false, NSBDC: "", TLS: true, Compact: true, ResultLimit: 1000, NSBSpeedMin: 0.1, NSBSpeedLimit: 5, Format: "txt", Fields: "compact", Custom: "", GitHub: false, GHBranch: "main", GHPath: "", GHMessage: "update cfdata results"}
+	return cliFileConfig{CLI: true, Mode: "official", ScanMode: "tcping", IPType: 4, Threads: 100, Out: "ip.csv", SpeedTest: 0, Progress: true, NoColor: false, URL: autoSpeedURLValue, DNS: defaultDNSServers, Debug: false, CompactIPv4: false, TestPort: 443, Delay: 500, DC: "", SpeedLimit: 5, SpeedMin: 0.1, File: "", SourceURL: "", NSBFallbackPort: 0, NSBIPType: "all", NSBQualified: false, NSBDC: "", TLS: true, Compact: true, ResultLimit: 1000, NSBSpeedMin: 0.1, NSBSpeedLimit: 5, Format: "txt", Fields: "compact", Custom: "", V6Bracket: true, GitHub: false, GHBranch: "main", GHPath: "", GHMessage: "update cfdata results"}
 }
 
 func (c cliFileConfig) Export() cliExportConfig {
-	return cliExportConfig{Format: c.Format, Fields: c.Fields, Custom: c.Custom, GitHub: c.GitHub, GitHubSet: true, GHRepo: c.GHRepo, GHBranch: c.GHBranch, GHPath: c.GHPath, GHMessage: c.GHMessage, GHToken: c.GHToken, GHTokenFile: c.GHTokenFile, GHUpload: c.GHUpload}
+	return cliExportConfig{Format: c.Format, Fields: c.Fields, Custom: c.Custom, V6Bracket: c.V6Bracket, V6BracketSet: true, GitHub: c.GitHub, GitHubSet: true, GHRepo: c.GHRepo, GHBranch: c.GHBranch, GHPath: c.GHPath, GHMessage: c.GHMessage, GHToken: c.GHToken, GHTokenFile: c.GHTokenFile, GHUpload: c.GHUpload}
 }
 
 type cliExportConfigTemplate struct {
@@ -549,6 +557,10 @@ func mergeCLIExportConfig(dst *cliExportConfig, src cliExportConfig, onlyProvide
 	}
 	if isSet("custom", src.Custom) {
 		dst.Custom = src.Custom
+	}
+	if (!onlyProvided && src.V6BracketSet) || (onlyProvided && len(provided) > 0 && provided[0]["v6bracket"]) {
+		dst.V6Bracket = src.V6Bracket
+		dst.V6BracketSet = true
 	}
 	if (!onlyProvided && src.GitHubSet) || (onlyProvided && len(provided) > 0 && provided[0]["github"]) {
 		dst.GitHub = src.GitHub
@@ -763,6 +775,7 @@ func buildCLIConfigHelp() []cliConfigHelp {
 		{Name: "format", Description: "导出/上传内容格式", Default: "txt", Options: []string{"csv", "txt"}},
 		{Name: "fields", Description: "导出字段；支持 compact、all、ipport 或逗号分隔字段 key；自定义字段可写在这里排序", Default: "compact", Options: []string{"compact", "all", "ipport", "ipport,dc,loc", "ipport,latency,dc,loc"}},
 		{Name: "custom", Description: "自定义导出字段，格式 标题:内容，多项用逗号分隔；未在 fields 中排序时默认追加到最后。兼容 key=标题:内容", Default: ""},
+		{Name: "v6bracket", Description: "TXT 导出时对 IPv6 地址加方括号（[IPv6]:端口），仅对 IPv6 行生效", Default: "true", Options: []string{"true", "false"}},
 		{Name: "github", Description: "导出后上传到 GitHub", Default: "false", Options: []string{"true", "false"}},
 		{Name: "ghrepo", Description: "GitHub 仓库，格式 owner/repo", Default: ""},
 		{Name: "ghbranch", Description: "GitHub 分支", Default: "main"},
@@ -1612,7 +1625,13 @@ func formatCLIResults(rows []cliResultRow, cfg cliExportConfig) (string, error) 
 		var b strings.Builder
 		for _, row := range rows {
 			ipport := row["ipport"]
-			if ipport == "" {
+			if ip := strings.TrimSpace(row["ip"]); ip != "" {
+				if cfg.V6Bracket && strings.Contains(ip, ":") {
+					ipport = "[" + ip + "]:" + row["port"]
+				} else {
+					ipport = ip + ":" + row["port"]
+				}
+			} else if ipport == "" {
 				ipport = row["ip"] + ":" + row["port"]
 			}
 			extras := make([]string, 0, len(fields))
