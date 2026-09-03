@@ -29,17 +29,53 @@ func resolveHostToIPs(ctx context.Context, host string, maxIPs int) ([]string, e
 	if addr, err := netip.ParseAddr(host); err == nil {
 		return []string{addr.String()}, nil
 	}
-	var resolver *net.Resolver
 	if customResolver != nil && customDNSForced {
-		resolver = customResolver
-	} else {
-		resolver = net.DefaultResolver
+		ips, err := customResolver.LookupIP(ctx, "ip", host)
+		if err != nil {
+			return nil, fmt.Errorf("域名解析失败 %s: %w", host, err)
+		}
+		if len(ips) == 0 {
+			return nil, fmt.Errorf("域名 %s 未解析到任何 IP 地址", host)
+		}
+		limit := len(ips)
+		if maxIPs > 0 && limit > maxIPs {
+			limit = maxIPs
+		}
+		result := make([]string, 0, limit)
+		for i := 0; i < limit; i++ {
+			result = append(result, ips[i].String())
+		}
+		return result, nil
 	}
-	ips, err := resolver.LookupIP(ctx, "ip", host)
-	if err != nil {
-		return nil, fmt.Errorf("域名解析失败 %s: %w", host, err)
+	ips, err := net.DefaultResolver.LookupIP(ctx, "ip", host)
+	if err == nil && len(ips) > 0 {
+		limit := len(ips)
+		if maxIPs > 0 && limit > maxIPs {
+			limit = maxIPs
+		}
+		result := make([]string, 0, limit)
+		for i := 0; i < limit; i++ {
+			result = append(result, ips[i].String())
+		}
+		return result, nil
+	}
+	if customResolver == nil {
+		if err != nil {
+			return nil, fmt.Errorf("域名解析失败 %s: %w", host, err)
+		}
+		return nil, fmt.Errorf("域名 %s 未解析到任何 IP 地址", host)
+	}
+	ips, fallbackErr := customResolver.LookupIP(ctx, "ip", host)
+	if fallbackErr != nil {
+		if err != nil {
+			return nil, fmt.Errorf("域名解析失败 %s: %w", host, err)
+		}
+		return nil, fmt.Errorf("域名解析失败 %s: %w", host, fallbackErr)
 	}
 	if len(ips) == 0 {
+		if err != nil {
+			return nil, fmt.Errorf("域名 %s 未解析到任何 IP 地址", host)
+		}
 		return nil, fmt.Errorf("域名 %s 未解析到任何 IP 地址", host)
 	}
 	limit := len(ips)
